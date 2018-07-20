@@ -1,0 +1,208 @@
+/* Chức năng: bật tắt đèn trong mạng nội bộ bằng cách gọi qua API, kết quả trả về là Json
+On: http://ip/lamp/on?id="1,2,3" -> {success : true or false, error: null or 1}
+Off: http://ip/lamp/off?id="1,2,3"
+Check: http://ip/lamp/check  -> {"1":0,"2":0,"3":0} 0 tắt 1 mở
+File name trong máy: 12-06-2018API
+*/
+
+/**************************************************************************************************/
+
+
+
+#include <ESP8266WiFi.h>            
+#include <ESP8266WebServer.h>
+#include <ArduinoJson.h>
+
+ESP8266WebServer server(80);
+const char* ssid = "Zinza";
+const char* password = "zinza123@";
+IPAddress staticIP(10,0,0,175);
+IPAddress gateway(10,0,0,1);
+IPAddress subnet(255,255,255,0);
+IPAddress dns1(10,0,0,3);
+IPAddress dns2(10,0,0,1);
+
+int ports[] = {14, 12, 13};
+const int ledCount = 3;
+
+void setup() {
+  for(int p=0; p<ledCount; p++){
+  pinMode(ports[p],OUTPUT);
+  }
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  WiFi.config(staticIP, gateway, subnet, dns1, dns2);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println("Waiting to connect…");
+  }
+  
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.printf("Mac address: %s\n", WiFi.macAddress().c_str());
+  Serial.print("Subnet mask: ");
+  Serial.println(WiFi.subnetMask());
+  WiFi.gatewayIP();
+  Serial.printf("Gataway IP: %s\n", WiFi.gatewayIP().toString().c_str());
+  Serial.print("DNS #1, #2 IP: ");
+  WiFi.dnsIP().printTo(Serial);
+  Serial.print(", ");
+  WiFi.dnsIP(1).printTo(Serial);
+  Serial.println("\nConnected");
+  
+  server.on("/lamp/on", lOn);
+  server.on("/lamp/off", lOff);
+  server.on("/lamp/check", lCheck);
+  server.on("/lamp", lRoot);
+  server.on("/", lRoot);
+
+  server.begin();
+  Serial.println("Server listening");   
+}
+
+void lOn() {
+  String message = "";
+  for (int i = 0; i < server.args(); i++) {
+    String paramName = server.argName(i);
+    String paramValue = server.arg(i);
+    bool status = false;
+
+    if (checkSyntaxName(server.argName(i)) == false){
+      message += server.argName(i);
+      message += " not found";
+      server.send(200, "text/plain", message);
+      break;
+    }
+    
+    if (paramValue == "all") {
+      onOffAll(HIGH);
+      /*message += "All led On";*/
+      status = true;
+      jsonStatus(status);
+      break;
+    }
+
+    if (checkSyntaxValue(server.arg(i)) == false){
+      message += "Led ";
+      message += paramValue.toInt();
+      message += " not found\n";
+      message += "So led trong khoang tu 1->" + String(ledCount);
+      server.send(200, "text/plain", message);
+      break;
+    }
+    
+    else { 
+      int lampId = paramValue.toInt() - 1; 
+      digitalWrite(ports[lampId], HIGH);
+      /*message += "Led ";
+      message += server.arg(i) + " On \n";*/
+      status = true;
+      jsonStatus(status);
+    }
+  }
+  /*server.send(200, "text/plain", message);*/
+}
+
+void lOff() { 
+  String message = "";
+  for (int i = 0; i < server.args(); i++) {
+    String paramName = server.argName(i);
+    String paramValue = server.arg(i);
+    bool status = false;
+
+    if (checkSyntaxName(server.argName(i)) == false){
+      message += server.argName(i);
+      message += " not found";
+      server.send(200, "text/plain", message);
+      break;
+    }
+    
+    if (paramValue == "all") {
+      onOffAll(LOW);
+      /*message += "All led Off";*/
+      status = true;
+      jsonStatus(status);
+      break;
+    }
+    
+    if (checkSyntaxValue(server.arg(i)) == false){
+      message += "Led ";
+      message += paramValue.toInt();
+      message += " not found \n";
+      message += "So led trong khoang tu 1->" + String(ledCount);
+      server.send(200, "text/plain", message);
+      break;
+    }
+    
+    else {
+      int lampId = paramValue.toInt() - 1;  
+      digitalWrite(ports[lampId], LOW);
+      /*message += "Led ";
+      message += server.arg(i) + " Off \n";*/
+      status = true;
+      jsonStatus(status);
+    }
+  }
+  /*server.send(200, "text/plain", message);*/
+}
+
+void jsonStatus(bool st) {
+  String json;
+  StaticJsonBuffer<200> jsonBuffer;
+  JsonObject& object = jsonBuffer.createObject();
+  object["success"] = st;
+  if(st = false) {
+    object["error"] = "1";
+  }
+  else {
+  object["error"] = "null";
+  }
+  object.prettyPrintTo(json);
+  server.send(200, "text/json", json);
+}
+
+String createJsonResponse() {
+  String json;
+  StaticJsonBuffer<200> jsonBuffer;
+  JsonObject& object = jsonBuffer.createObject();
+  for(int i=0; i<ledCount; i++){
+    object[String(i+1)] = digitalRead(ports[i]);
+  }
+  object.prettyPrintTo(json);
+  return json;
+}
+
+void lCheck() {
+    server.send(200, "text/json", createJsonResponse());
+}
+
+void onOffAll(int lampStatus){
+  for (int i = 0; i < ledCount; i++) {
+    digitalWrite(ports[i], lampStatus);
+  }
+}
+
+bool checkSyntaxName(String nameId) {
+  if (nameId != "id"){
+    return false;
+  }
+  return true;
+}
+
+bool checkSyntaxValue(String valueId) {
+  if(valueId.toInt() < 1 || valueId.toInt() > ledCount){
+    return false;
+  }
+  return true;
+}
+
+void lRoot() {
+  server.send(200, "text/plain", "Hello world");
+}
+
+void loop() {
+
+  server.handleClient();
+
+}
