@@ -48,8 +48,8 @@ const char* WIFI_PASSWORD = "mothaibabon";
 const PROGMEM char* MQTT_CLIENT_ID = "office_light1";
 const PROGMEM char* MQTT_SERVER_IP = "192.168.1.247";
 const PROGMEM uint16_t MQTT_SERVER_PORT = 1883;
-const PROGMEM char* MQTT_USER = "username";
-const PROGMEM char* MQTT_PASSWORD = "matkhau";
+const PROGMEM char* MQTT_USER = "";
+const PROGMEM char* MQTT_PASSWORD = "";
 
 // MQTT: topics
 const char* MQTT_LIGHT_STATE_TOPIC1 = "house/light1/status";
