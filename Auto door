@@ -31,7 +31,7 @@ int cards[][5] = {      //ID Kartu yang diperbolehkan masuk
   {160, 152, 140, 121, 205}
   
 };
-Password password = Password("12081970"); //<-- TULIS PASSWORD SISTEM ANDA DISINI
+Password password = Password("*****"); //<-- TULIS PASSWORD SISTEM ANDA DISINI
 const byte ROWS = 4; // Four rows
 const byte COLS = 4; //  columns
 // Define the Keymap
